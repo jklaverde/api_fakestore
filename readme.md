@@ -57,15 +57,26 @@ Each scrape writes a timestamped file to `scraped_data/`, e.g. `products_2026040
 
 ## compare_scrapes.py
 
-Detects differences across multiple CSV snapshots — useful for tracking price changes, rating shifts, or products appearing/disappearing between scrape runs.
+Detects differences across multiple snapshots of the same file type — useful for tracking price changes, rating shifts, or products appearing/disappearing between scrape runs. Supports CSV, JSON, and HDF5 snapshot formats.
 
 ### Usage
 
 ```bash
-python compare_scrapes.py
+# Compare CSV snapshots (default)
+python compare_scrapes.py --type csv
+
+# Compare JSON snapshots
+python compare_scrapes.py --type json
+
+# Compare HDF5 snapshots
+python compare_scrapes.py --type hdf5
 ```
 
-No arguments needed. The script automatically reads all `products_*.csv` files from `scraped_data/` and compares them in chronological order.
+| Argument | Required | Description |
+|---|---|---|
+| `--type` | No | Snapshot file type to compare: `csv`, `json`, or `hdf5` (default: `csv`) |
+
+The script reads all `products_*.<ext>` files from `scraped_data/` that match the specified type (`.csv`, `.json`, or `.h5`) and compares them in chronological order. Only snapshots of the chosen type are loaded — mixing formats is not supported.
 
 ### What it reports
 
@@ -89,17 +100,17 @@ Comparing  20260407_133412  ->  20260407_143415
 ============================================================
 
   [price] changed in 2 product(s):
-    id=  3  55.99 -> 49.99  (-6)    Mens Cotton Jacket
-    id= 12  13.99 -> 15.49  (+1.5)  WD 2TB Elements Portable...
+    id=  3  55.99 → 49.99  (-6)    Mens Cotton Jacket
+    id= 12  13.99 → 15.49  (+1.5)  WD 2TB Elements Portable...
 
   [rating_count] changed in 1 product(s):
-    id=  3  500 -> 512  (+12)  Mens Cotton Jacket
+    id=  3  500 → 512  (+12)  Mens Cotton Jacket
 ```
 
 If no differences are found between two snapshots:
 
 ```
-  No differences found -- snapshots are identical.
+  No differences found — snapshots are identical.
 ```
 
 ### Workflow

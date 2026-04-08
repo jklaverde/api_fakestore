@@ -1,14 +1,21 @@
 """
-compare_scrapes.py — Compare product data across scraped CSV snapshots.
+compare_scrapes.py — Compare product data across scraped snapshots.
 
-Loads all CSV files in scraped_data/, sorts them by timestamp, and reports:
+Loads all snapshot files of a given type in scraped_data/, sorts them by
+timestamp, and reports:
   - Price changes per product
   - Rating changes per product
   - Products added or removed between snapshots
+
+Usage:
+  python compare_scrapes.py --type csv      (default)
+  python compare_scrapes.py --type json
+  python compare_scrapes.py --type hdf5
 """
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import pandas as pd
@@ -16,19 +23,26 @@ import pandas as pd
 SCRAPED_DIR = Path("scraped_data")
 NUMERIC_COLS = ["price", "rating_rate", "rating_count"]
 
+# Map user-facing type names to file extensions and pandas readers
+_TYPE_MAP = {
+    "csv":  ("csv",  lambda f: pd.read_csv(f)),
+    "json": ("json", lambda f: pd.read_json(f)),
+    "hdf5": ("h5",   lambda f: pd.read_hdf(f, key="products")),
+}
 
-def load_snapshots() -> list[tuple[str, pd.DataFrame]]:
+
+def load_snapshots(file_type: str) -> list[tuple[str, pd.DataFrame]]:
     """Return list of (timestamp, DataFrame) sorted chronologically."""
-    files = sorted(SCRAPED_DIR.glob("products_*.csv"))
+    ext, reader = _TYPE_MAP[file_type]
+    files = sorted(SCRAPED_DIR.glob(f"products_*.{ext}"))
     if not files:
-        print(f"No CSV files found in {SCRAPED_DIR}/")
+        print(f"No {ext.upper()} files found in {SCRAPED_DIR}/")
         return []
 
     snapshots = []
     for f in files:
-        # Extract timestamp from filename: products_YYYYMMDD_HHMMSS.csv
         ts = f.stem.replace("products_", "")
-        df = pd.read_csv(f)
+        df = reader(f)
         snapshots.append((ts, df))
         print(f"  Loaded {f.name}  ({len(df)} products)")
     return snapshots
@@ -81,8 +95,19 @@ def compare_pair(ts_a: str, df_a: pd.DataFrame, ts_b: str, df_b: pd.DataFrame) -
 
 
 def main() -> None:
-    print(f"Scanning {SCRAPED_DIR}/ for CSV snapshots...\n")
-    snapshots = load_snapshots()
+    parser = argparse.ArgumentParser(description="Compare product snapshots.")
+    parser.add_argument(
+        "--type",
+        dest="file_type",
+        choices=_TYPE_MAP.keys(),
+        default="csv",
+        help="Snapshot file type to compare (default: csv)",
+    )
+    args = parser.parse_args()
+
+    ext = _TYPE_MAP[args.file_type][0]
+    print(f"Scanning {SCRAPED_DIR}/ for {ext.upper()} snapshots...\n")
+    snapshots = load_snapshots(args.file_type)
 
     if len(snapshots) < 2:
         print("\nNeed at least 2 snapshots to compare.")
