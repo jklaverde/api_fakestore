@@ -10,14 +10,17 @@ api_fakestore/
 ├── storage.py          # Save scraped data to CSV / JSON / HDF5
 ├── store_scrapper.py   # CLI: scrape and manage products
 ├── compare_scrapes.py  # Compare snapshots to detect changes
-└── scraped_data/       # Output directory for CSV snapshots
+├── price_history.py    # Plot price over time for one or more products
+└── scraped_data/       # Output directory for scrape snapshots
 ```
 
 ## Requirements
 
 ```bash
-pip install requests pandas
+pip install requests pandas matplotlib
 ```
+
+> HDF5 support also requires `tables`: `pip install tables`
 
 ---
 
@@ -103,3 +106,40 @@ If no differences are found between two snapshots:
 
 1. Run `store_scrapper.py -s csv` multiple times (at different times or days).
 2. Run `compare_scrapes.py` to see what changed between runs.
+
+---
+
+## price_history.py
+
+Plots the price of one or more products over time, using all available scrape snapshots of a given file type. The scrape timestamp is extracted from each filename (`products_YYYYMMDD_HHMMSS.<ext>`) and used as the X-axis.
+
+### Usage
+
+```bash
+# Single product — reads all CSV snapshots
+python price_history.py --ids 1 --type csv
+
+# Multiple products on one chart
+python price_history.py --ids 1 3 5 --type csv
+
+# Using JSON or HDF5 snapshots
+python price_history.py --ids 2 --type json
+python price_history.py --ids 4 --type hdf5
+```
+
+| Argument | Required | Description |
+|---|---|---|
+| `--ids` | Yes | One or more product IDs to plot |
+| `--type` | Yes | Snapshot file type: `csv`, `json`, or `hdf5` |
+
+### What it shows
+
+- A line chart with one series per product
+- Each data point marked with its price (`$xx.xx`)
+- X-axis labeled with the scrape date and time
+- Chart title includes the product name (single product) or "selected products" (multi)
+
+### Workflow
+
+1. Run `store_scrapper.py -s csv` multiple times to accumulate snapshots.
+2. Run `price_history.py --ids <id> --type csv` to visualise price trends.
