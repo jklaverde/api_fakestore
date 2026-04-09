@@ -15,8 +15,6 @@ import os
 from pathlib import Path
 from typing import List
 
-# Optional heavy dependencies – imported lazily so the module loads even if
-# the user hasn't installed every backend yet.
 
 OUTPUT_DIR = Path("scraped_data")
 
@@ -86,6 +84,7 @@ def _save_hdf5(products: List[dict], timestamp: str) -> Path:
     rows = []
     for p in products:
         row = dict(p)
+        print(row)
         rating = row.pop("rating", {}) or {}
         row["rating_rate"]  = rating.get("rate")
         row["rating_count"] = rating.get("count")
