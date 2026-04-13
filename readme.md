@@ -1,156 +1,129 @@
-# FakeStore API — Data Quality & Wrangling
-
-A Python toolkit for scraping, storing, and comparing product data from [FakeStoreAPI](https://fakestoreapi.com).
-
-## Project structure
+# International University (Internationale Hochschule) - Written assignment complementary project
 
 ```
-api_fakestore/
-├── api_client.py       # HTTP client for FakeStoreAPI
-├── storage.py          # Save scraped data to CSV / JSON / HDF5
-├── store_scrapper.py   # CLI: scrape and manage products
-├── compare_scrapes.py  # Compare snapshots to detect changes
-├── price_history.py    # Plot price over time for one or more products
-└── scraped_data/       # Output directory for scrape snapshots
+This academic project is complementary to written assignment of the course "Data Quality and Data Wrangling" (DLBDSDQDW01)
+
+Task: Scrape the Web
+Student Name: Juan Carlos Laverde
+Student Id: UPS10797707
+Tutor: Dr. PhD. Christian Müller-Kett
+
+
+The project has as purpose to practice and train the skills acquired along the course
+specifically scrapping a web application through APIs, in this case
+
 ```
 
-## Requirements
+# store_scrapper — FakeStoreAPI Python Client
 
-```bash
-pip install requests pandas matplotlib
-```
-
-> HDF5 support also requires `tables`: `pip install tables`
+A command-line tool to **scrape, store, and manage** products from
+[FakeStoreAPI](https://fakestoreapi.com).
 
 ---
 
-## store_scrapper.py
+## Project layout
 
-Scrape products and interact with the API.
+```
+store_scrapper/
+├── store_scrapper.py   # CLI entry-point
+├── api_client.py       # HTTP client (GET / POST / PUT / PATCH / DELETE)
+├── storage.py          # Writers: JSON · CSV · HDF5
+├── requirements.txt
+└── scraped_data/       # Created automatically on first scrape
+    └── products_<TIMESTAMP>.<ext>
+```
+
+---
+
+## Installation
 
 ```bash
-# Scrape all products and save as CSV
+pip install -r requirements.txt
+```
+
+> **HDF5 only** – `tables` (PyTables) is only required when you use
+> `--store hdf5`. The rest of the tool works with just `requests` + `pandas`.
+
+---
+
+## Usage
+
+### Scrape & store all products
+
+```bash
+# Save as JSON
+python store_scrapper.py -s json
+
+# Save as CSV
 python store_scrapper.py -s csv
 
-# Other formats
-python store_scrapper.py -s json
+# Save as HDF5
 python store_scrapper.py -s hdf5
-
-# Get a single product
-python store_scrapper.py --get 1
-
-# List all categories
-python store_scrapper.py --categories
-
-# List products by category
-python store_scrapper.py --by-category "men's clothing"
-
-# Add / update / delete (fake — not persisted server-side)
-python store_scrapper.py --add
-python store_scrapper.py --update 1
-python store_scrapper.py --delete 1
 ```
 
-Each scrape writes a timestamped file to `scraped_data/`, e.g. `products_20260407_133412.csv`.
+Output files are written to `scraped_data/` with the run timestamp embedded in
+the filename, e.g.:
+
+```
+scraped_data/products_20240407_153012.json
+scraped_data/products_20240407_153012.csv
+scraped_data/products_20240407_153012.h5
+```
+
+Every record includes a `scraped_at` field (`YYYYMMDD_HHMMSS`) so you can
+track price / description changes across multiple runs.
 
 ---
 
-## compare_scrapes.py
+### Other commands
 
-Detects differences across multiple snapshots of the same file type — useful for tracking price changes, rating shifts, or products appearing/disappearing between scrape runs. Supports CSV, JSON, and HDF5 snapshot formats.
+| Command                                              | Description                       |
+| ---------------------------------------------------- | --------------------------------- |
+| `python store_scrapper.py --get 3`                   | Fetch and display product ID 3    |
+| `python store_scrapper.py --add`                     | Interactively add a new product   |
+| `python store_scrapper.py --update 5`                | Interactively update product ID 5 |
+| `python store_scrapper.py --delete 7`                | Delete product ID 7               |
+| `python store_scrapper.py --categories`              | List all product categories       |
+| `python store_scrapper.py --by-category electronics` | List products in a category       |
 
-### Usage
-
-```bash
-# Compare CSV snapshots (default)
-python compare_scrapes.py --type csv
-
-# Compare JSON snapshots
-python compare_scrapes.py --type json
-
-# Compare HDF5 snapshots
-python compare_scrapes.py --type hdf5
-```
-
-| Argument | Required | Description |
-|---|---|---|
-| `--type` | No | Snapshot file type to compare: `csv`, `json`, or `hdf5` (default: `csv`) |
-
-The script reads all `products_*.<ext>` files from `scraped_data/` that match the specified type (`.csv`, `.json`, or `.h5`) and compares them in chronological order. Only snapshots of the chosen type are loaded — mixing formats is not supported.
-
-### What it reports
-
-| Check | Description |
-|---|---|
-| Price changes | Products whose `price` changed between snapshots |
-| Rating changes | Products whose `rating_rate` or `rating_count` changed |
-| Products added | IDs present in the newer snapshot but not the older one |
-| Products removed | IDs present in the older snapshot but missing in the newer one |
-
-### Example output
-
-```
-Scanning scraped_data/ for CSV snapshots...
-
-  Loaded products_20260407_133412.csv  (20 products)
-  Loaded products_20260407_143415.csv  (20 products)
-
-============================================================
-Comparing  20260407_133412  ->  20260407_143415
-============================================================
-
-  [price] changed in 2 product(s):
-    id=  3  55.99 → 49.99  (-6)    Mens Cotton Jacket
-    id= 12  13.99 → 15.49  (+1.5)  WD 2TB Elements Portable...
-
-  [rating_count] changed in 1 product(s):
-    id=  3  500 → 512  (+12)  Mens Cotton Jacket
-```
-
-If no differences are found between two snapshots:
-
-```
-  No differences found — snapshots are identical.
-```
-
-### Workflow
-
-1. Run `store_scrapper.py -s csv` multiple times (at different times or days).
-2. Run `compare_scrapes.py` to see what changed between runs.
+> **Note:** POST / PUT / DELETE calls on FakeStoreAPI are **simulated** — the
+> server returns a realistic response but does not persist changes.
 
 ---
 
-## price_history.py
+## Product schema
 
-Plots the price of one or more products over time, using all available scrape snapshots of a given file type. The scrape timestamp is extracted from each filename (`products_YYYYMMDD_HHMMSS.<ext>`) and used as the X-axis.
+| Field          | Type  | Description                                      |
+| -------------- | ----- | ------------------------------------------------ |
+| `id`           | int   | Unique product identifier                        |
+| `title`        | str   | Product name                                     |
+| `price`        | float | Price in USD                                     |
+| `category`     | str   | e.g. `electronics`, `jewelery`, `men's clothing` |
+| `description`  | str   | Full product description                         |
+| `image`        | str   | Image URL                                        |
+| `rating.rate`  | float | Average rating (0–5)                             |
+| `rating.count` | int   | Number of ratings                                |
+| `scraped_at`   | str   | Timestamp added by this tool                     |
 
-### Usage
+---
+
+## Tracking changes over time
+
+Run the scraper periodically (e.g. via cron):
 
 ```bash
-# Single product — reads all CSV snapshots
-python price_history.py --ids 1 --type csv
-
-# Multiple products on one chart
-python price_history.py --ids 1 3 5 --type csv
-
-# Using JSON or HDF5 snapshots
-python price_history.py --ids 2 --type json
-python price_history.py --ids 4 --type hdf5
+# Every day at 08:00
+0 8 * * * cd /path/to/store_scrapper && python store_scrapper.py -s csv
 ```
 
-| Argument | Required | Description |
-|---|---|---|
-| `--ids` | Yes | One or more product IDs to plot |
-| `--type` | Yes | Snapshot file type: `csv`, `json`, or `hdf5` |
+Each CSV/JSON/HDF5 file is a snapshot. Load multiple files in pandas to diff:
 
-### What it shows
+```python
+import pandas as pd, glob
 
-- A line chart with one series per product
-- Each data point marked with its price (`$xx.xx`)
-- X-axis labeled with the scrape date and time
-- Chart title includes the product name (single product) or "selected products" (multi)
+frames = [pd.read_csv(f) for f in sorted(glob.glob("scraped_data/*.csv"))]
+df = pd.concat(frames, ignore_index=True)
 
-### Workflow
-
-1. Run `store_scrapper.py -s csv` multiple times to accumulate snapshots.
-2. Run `price_history.py --ids <id> --type csv` to visualise price trends.
+# Show price changes for product 1
+print(df[df["id"] == 1][["scraped_at", "price", "title"]])
+```
